@@ -114,4 +114,4 @@ struct Order {
 };
 
 
-Notional operator*(Price* a, Quantity* b) { return Notional{a->ticks() * b->ticks()} ; };
+inline Notional operator*(Price a, Quantity b) { return Notional{a.ticks() * b.ticks()} ; };
