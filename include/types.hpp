@@ -3,7 +3,6 @@
 #include <chrono>
 #include <cstdint>
 #include <optional>
-#include <limits>
 
 constexpr std::uint64_t PRICE_SCALE {10'000};
 constexpr std::uint64_t QUANTITY_SCALE {100};
@@ -14,6 +13,7 @@ enum class Side {
     sell
 };
 
+//1e-4
 struct Price {
     explicit Price(std::int64_t ticks) : ticks_(ticks) {}
 
@@ -35,6 +35,8 @@ private:
     std::int64_t ticks_;
 };
 
+
+//1e-2
 struct Quantity {
     explicit Quantity(std::int64_t ticks) : ticks_(ticks) {}
 
@@ -55,6 +57,7 @@ private:
     std::int64_t ticks_;
 };
 
+//1e-6
 struct Funding {
     explicit Funding(std::int64_t ticks) : ticks_(ticks) {}
 
@@ -75,6 +78,7 @@ private:
     std::int64_t ticks_;
 };
 
+//1e-6
 struct Notional {
 
     Notional() : ticks_(0) {}
@@ -118,16 +122,7 @@ struct Order {
 
 
 
-inline std::optional<Notional> operator*(Price a, Quantity b) {
-
-    std::int64_t aTicks {a.ticks()};
-    std::int64_t bTicks {b.ticks()};
-    int64_t res{};
-
-    if (__builtin_mul_overflow(aTicks, bTicks, &res)) {
-        return std::nullopt;
-    }
-
-    return Notional{res};
-};
+inline Notional operator*(Price a, Quantity b) {
+    return Notional{a.ticks() * b.ticks()};
+}
 
