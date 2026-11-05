@@ -29,7 +29,6 @@ struct Price {
     // functions
     std::int64_t ticks() { return ticks_; }
 
-    
 private:
     int64_t ticks_;
 };

@@ -1,4 +1,0 @@
-/home/jthat/projects/kalshi-perps/build/CMakeFiles/test_types.dir
-/home/jthat/projects/kalshi-perps/build/CMakeFiles/test.dir
-/home/jthat/projects/kalshi-perps/build/CMakeFiles/edit_cache.dir
-/home/jthat/projects/kalshi-perps/build/CMakeFiles/rebuild_cache.dir
