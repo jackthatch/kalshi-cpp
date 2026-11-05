@@ -2,16 +2,16 @@
 
 #include <chrono>
 #include <cstdint>
+#include <optional>
 
-constexpr uint64_t PRICE_SCALE {10'000};
-constexpr uint64_t QUANTITY_SCALE {100};
-constexpr uint64_t FUNDING_SCALE {1'000'000};
+constexpr std::uint64_t PRICE_SCALE {10'000};
+constexpr std::uint64_t QUANTITY_SCALE {100};
+constexpr std::uint64_t FUNDING_SCALE {1'000'000};
 
 enum class Side {
     buy,
     sell
 };
-
 
 struct Price {
     explicit Price(std::int64_t ticks) : ticks_(ticks) {}
@@ -23,28 +23,95 @@ struct Price {
     friend bool operator>(Price a, Price b) { return a.ticks_ > b.ticks_; };
     friend bool operator>=(Price a, Price b) { return a.ticks_ >= b.ticks_; };
 
+
     // arithmetic
-    friend int64_t operator-(Price a, Price b) { return a.ticks_ - b.ticks_; };
+    friend std::int64_t operator-(Price a, Price b) { return a.ticks_ - b.ticks_; };
 
     // functions
-    std::int64_t ticks() { return ticks_; }
+    std::int64_t ticks() const { return ticks_; }
 
 private:
-    int64_t ticks_;
+    std::int64_t ticks_;
 };
 
+struct Quantity {
+    explicit Quantity(std::int64_t ticks) : ticks_(ticks) {}
+
+    // comparisons
+    friend bool operator==(Quantity a, Quantity b) { return a.ticks_ == b.ticks_; };
+    friend bool operator<(Quantity a, Quantity b) { return a.ticks_ < b.ticks_; };
+    friend bool operator<=(Quantity a, Quantity b) { return a.ticks_ <= b.ticks_; };
+    friend bool operator>(Quantity a, Quantity b) { return a.ticks_ > b.ticks_; };
+    friend bool operator>=(Quantity a, Quantity b) { return a.ticks_ >= b.ticks_; };
+
+    // arithmetic
+    friend std::int64_t operator-(Quantity a, Quantity b) { return a.ticks_ - b.ticks_; };
+
+    // functions
+    std::int64_t ticks() const { return ticks_; }
+
+private:
+    std::int64_t ticks_;
+};
+
+struct Funding {
+    explicit Funding(std::int64_t ticks) : ticks_(ticks) {}
+
+    // comparisons
+    friend bool operator==(Funding a, Funding b) { return a.ticks_ == b.ticks_; };
+    friend bool operator<(Funding a, Funding b) { return a.ticks_ < b.ticks_; };
+    friend bool operator<=(Funding a, Funding b) { return a.ticks_ <= b.ticks_; };
+    friend bool operator>(Funding a, Funding b) { return a.ticks_ > b.ticks_; };
+    friend bool operator>=(Funding a, Funding b) { return a.ticks_ >= b.ticks_; };
+
+    // arithmetic
+    friend std::int64_t operator-(Funding a, Funding b) { return a.ticks_ - b.ticks_; };
+
+    // functions
+    std::int64_t ticks() const { return ticks_; }
+
+private:
+    std::int64_t ticks_;
+};
+
+struct Notional {
+    explicit Notional(std::int64_t ticks) : ticks_(ticks) {}
+
+    // comparisons
+    friend bool operator==(Notional a, Notional b) { return a.ticks_ == b.ticks_; };
+    friend bool operator<(Notional a, Notional b) { return a.ticks_ < b.ticks_; };
+    friend bool operator<=(Notional a, Notional b) { return a.ticks_ <= b.ticks_; };
+    friend bool operator>(Notional a, Notional b) { return a.ticks_ > b.ticks_; };
+    friend bool operator>=(Notional a, Notional b) { return a.ticks_ >= b.ticks_; };
+
+    // arithmetic
+    friend std::int64_t operator-(Notional a, Notional b) { return a.ticks_ - b.ticks_; };
+
+    // functions
+    std::int64_t ticks() const { return ticks_; }
+    
+
+private:
+    std::int64_t ticks_;
+};
+
+
+
 struct MarketSnapshot {
-    std::optional<uint64_t> bid;
-    std::optional<uint64_t> ask;
-    std::optional<uint64_t> last;
-    int64_t funding;
-    uint64_t snapshot_time;     //ns since epoch
+    std::optional<Price> bid;
+    std::optional<Price> ask;
+    std::optional<Price> last;
+    Funding funding;
+    std::uint64_t snapshot_time;     //ns since epoch
 };
 
 struct Order {
     Side side;
-    uint64_t order_id;
+    std::uint64_t order_id;
     Price price;
-    uint64_t quantity;
-    uint64_t order_time;    // ns since epoch
+    Quantity quantity;
+    std::uint64_t order_time;    // ns since epoch
 };
+
+
+Notional operator*(Price* a, Quantity* b) { return Notional{a->ticks() * b->ticks()} ; };
