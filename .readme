@@ -1,0 +1,21 @@
+
+
+Build All:
+    # one-time configure — rerun only after CMakeLists.txt changes or a fresh clone
+    cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++
+
+    # build all targets
+    cmake --build build
+
+    # run the test suite
+    ctest --test-dir build --output-on-failure
+
+Then: 
+cmake --build build && ctest --test-dir build --output-on-failure
+
+CMake Bypass for one file:
+clang++ -std=c++20 -g -O0 -Wall -Wextra -Iinclude tests/test_types.cpp -o build/test_types && ./build/test_types
+
+Syntax Check:
+clang++ -std=c++20 -Iinclude -fsyntax-only tests/test_types.cpp
+
