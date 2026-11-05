@@ -3,6 +3,7 @@
 #include <chrono>
 #include <cstdint>
 #include <optional>
+#include <limits>
 
 constexpr std::uint64_t PRICE_SCALE {10'000};
 constexpr std::uint64_t QUANTITY_SCALE {100};
@@ -75,6 +76,8 @@ private:
 };
 
 struct Notional {
+
+    Notional() : ticks_(0) {}
     explicit Notional(std::int64_t ticks) : ticks_(ticks) {}
 
     // comparisons
@@ -114,4 +117,17 @@ struct Order {
 };
 
 
-inline Notional operator*(Price a, Quantity b) { return Notional{a.ticks() * b.ticks()} ; };
+
+inline std::optional<Notional> operator*(Price a, Quantity b) {
+
+    std::int64_t aTicks {a.ticks()};
+    std::int64_t bTicks {b.ticks()};
+    int64_t res{};
+
+    if (__builtin_mul_overflow(aTicks, bTicks, &res)) {
+        return std::nullopt;
+    }
+
+    return Notional{res};
+};
+
