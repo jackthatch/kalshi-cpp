@@ -51,7 +51,7 @@ std::optional<std::int64_t> parse_decimal(std::string_view s) {
 
     if (idx < len && static_cast<unsigned char>(s[idx]) == '.') {
         ++idx;
-        while (idx < len && static_cast<unsigned char>(std::isdigit(s[idx]))) {
+        while (idx < len && std::isdigit(static_cast<unsigned char>(s[idx]))) {
             std::int64_t t{};
             if (__builtin_mul_overflow(accumulated, 10, &t) ||
                 __builtin_add_overflow(t, s[idx] - '0', &accumulated)) {
