@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string_view>
 #include <cctype>
+#include <iostream>
 
 /*
     Different quantities required different scaling
@@ -23,6 +24,8 @@ constexpr std::int64_t POW10[] = {
 //parse a string representation of a decimal as an int scaled 10^N
 template <int N>
 std::optional<std::int64_t> parse_decimal(std::string_view s) {
+    static_assert(N >= 0 && N <= 18);
+    static_assert(sizeof(POW10) / sizeof(POW10[0]) > N);
 
     int sign{1};    // will flip to -1 if negative sign found
     size_t idx{};
@@ -72,8 +75,6 @@ std::optional<std::int64_t> parse_decimal(std::string_view s) {
 
     std::int64_t scaled{};
 
-    static_assert(N >= 0 && N <= 18);
-    static_assert(sizeof(POW10) / sizeof(POW10[0]) > N);
     if (__builtin_mul_overflow(accumulated, POW10[N - fractionalDigits], &scaled)) {
 
         return std::nullopt;
@@ -84,7 +85,30 @@ std::optional<std::int64_t> parse_decimal(std::string_view s) {
 
 }
 
-/*
 template <int N>
-std::string format_decimal(std::int64_t decimal) {}
-*/
+std::string format_decimal(std::int64_t ticks) {
+
+    static_assert(N >= 0 && N <= 18);
+
+    const bool negative = ticks < 0;
+
+    const std::uint64_t mag = negative ? 0ULL - static_cast<std::uint64_t>(ticks) : static_cast<std::uint64_t>(ticks);
+    
+    const std::uint64_t scale = static_cast<std::uint64_t>(POW10[N]);
+    const std::uint64_t intPart = mag / scale;
+    const std::uint64_t fracPart = mag % scale;
+
+    std::string out;
+    if(negative) out.push_back('-');
+    out += std::to_string(intPart);
+
+    if constexpr (N > 0) {
+        out.push_back('.');
+        std::string frac = std::to_string(fracPart);
+        if(frac.size() < static_cast<std::size_t>(N)) {
+            out.append(static_cast<std::size_t>(N) - frac.size(), '0');
+        }
+        out += frac;
+    }
+    return out;
+}
