@@ -318,6 +318,24 @@ TEST_CASE("in_magnitude: shared boundary helper") {
     CHECK_FALSE(in_magnitude(-(MAX_QTY_UNITS + 1), MAX_QTY_UNITS));
 }
 
+TEST_CASE("parse_quantity: domain bound |units| <= 1e8 is enforced") {
+    CHECK_EQ(parse_quantity("1.55").value_or(kReject), 155);
+    CHECK_EQ(parse_quantity("1000000").value_or(kReject), 100'000'000LL);  // exactly 1e8 units
+    CHECK_FALSE(parse_quantity("1000000.01").has_value());                 // 1e8 + 1
+    CHECK_FALSE(parse_quantity("2000000").has_value());                    // 2e8
+    CHECK_FALSE(parse_quantity("-2000000").has_value());
+    CHECK_FALSE(parse_quantity("nonsense").has_value());
+    // Regression: quantity must not be validated against the looser price cap.
+    // 1e9 units passes |ticks| <= 1e10 (price) but must fail the 1e8 quantity cap.
+    CHECK_FALSE(parse_quantity("10000000").has_value());
+    static_assert(MAX_QTY_UNITS < MAX_PRICE_TICKS);
+}
+
+TEST_CASE("parse_decimal: high-bit bytes are not digits") {
+    CHECK_FALSE(parse_decimal<4>("0.1\xff").has_value());
+    CHECK_FALSE(parse_decimal<4>("\x80.5").has_value());
+}
+
 TEST_CASE("format_decimal<4>: fixed form, N fractional digits") {
     CHECK_EQ(format_decimal<4>(0), "0.0000"s);
     CHECK_EQ(format_decimal<4>(1), "0.0001"s);
