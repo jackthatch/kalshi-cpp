@@ -46,7 +46,7 @@ std::optional<std::int64_t> parse_decimal(std::string_view s) {
         ++idx;
     }
 
-    if (idx < len && s[idx] == '.') {
+    if (idx < len && static_cast<unsigned char>(s[idx]) == '.') {
         ++idx;
         while (idx < len && std::isdigit(s[idx])) {
             std::int64_t t{};
@@ -73,6 +73,7 @@ std::optional<std::int64_t> parse_decimal(std::string_view s) {
     std::int64_t scaled{};
 
     static_assert(N >= 0 && N <= 18);
+    static_assert(sizeof(POW10) / sizeof(POW10[0]) > N);
     if (__builtin_mul_overflow(accumulated, POW10[N - fractionalDigits], &scaled)) {
 
         return std::nullopt;
@@ -83,5 +84,7 @@ std::optional<std::int64_t> parse_decimal(std::string_view s) {
 
 }
 
+/*
 template <int N>
 std::string format_decimal(std::int64_t decimal) {}
+*/
