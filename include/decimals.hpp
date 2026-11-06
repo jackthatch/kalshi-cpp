@@ -3,75 +3,82 @@
 #include "types.hpp"
 #include <cstdint>
 #include <string_view>
-#include <cmath>
+#include <cctype>
 
 /*
     Different quantities required different scaling
-    Quantity => N == 2 == 10e2 scaling
-    Price => N == 4 == 10e4 scaling
-    Funding => N == 6 == 10e6 scaling
+    Quantity => N == 2 == 1e2 / 10^2 scaling
+    Price => N == 4 == 1e4 / 10^4 scaling
+    Funding => N == 6 == 1e6  / 10^6 scaling
 */
-
-constexpr std::uint64_t INTEGRAL_BASE {10};
+constexpr std::int64_t POW10[] = {
+    1, 10, 100, 1'000, 10'000, 100'000, 1'000'000, 10'000'000,
+    100'000'000, 1'000'000'000, 10'000'000'000LL, 100'000'000'000LL,
+    1'000'000'000'000LL, 10'000'000'000'000LL, 100'000'000'000'000LL,
+    1'000'000'000'000'000LL, 10'000'000'000'000'000LL,
+    100'000'000'000'000'000LL, 1'000'000'000'000'000'000LL
+};
 
 template <int N>
-std::int64_t scale_decimal(std::string_view stringWithoutDecimalPoint);
+std::optional<std::int64_t> parse_decimal(std::string_view s) {
 
-template <int N>
-std::optional<std::int64_t> parse_decimal(std::string_view tickAsString) {
+    int sign{1};
+    size_t idx{};
+    size_t len {s.size()};
+    std::int64_t accumulated{};
+    std::int64_t fractionalDigits{};
+    std::int64_t digits{};
 
-    auto decimalIdx = tickAsString.find('.');
-
-    if (decimalIdx == std::string_view::npos) {
-        return (scale_decimal<N>(tickAsString));
+    if (idx < len && s[idx] == '-') {
+        sign = -1;
+        idx++;
     }
 
-    bool decimalPointFound{};
-    int l{};
-    int r{};
-
-    std::string tickWithoutDecimalPoint {};
-    tickWithoutDecimalPoint.reserve(tickAsString.size());
-
-    for (int i = 0; char c : tickAsString) {
-        if (c != '.') {
-            decimalPointFound  = true;
-            ++i;
-            continue;
+    while (idx < len && std::isdigit(static_cast<unsigned char>(s[idx]))) {
+        std::int64_t t{};
+        if (__builtin_mul_overflow(accumulated, 10, &t) ||
+            __builtin_add_overflow(t, s[idx] - '0', &accumulated)) {
+            return std::nullopt;
         }
-
-        if (decimalPointFound) {
-            ++r;           
-        } else {
-            ++l;
-        }
-
-        tickWithoutDecimalPoint[i] = c; 
-        ++i;
+        ++digits;
+        ++idx;
     }
 
-    return (scale_decimal<N>(tickWithoutDecimalPoint));
+    if (idx < len && s[idx] == '.') {
+        ++idx;
+        while (idx < len && std::isdigit(s[idx])) {
+            std::int64_t t{};
+            if (__builtin_mul_overflow(accumulated, 10, &t) ||
+                __builtin_add_overflow(t, s[idx] - '0', &accumulated)) {
+                return std::nullopt;
+            }
+            ++fractionalDigits;
+            ++digits;
+            ++idx;
+        }
+    }
 
+    if (digits == 0) { return std::nullopt; }
+    if (idx != len) { return std::nullopt; }
+
+    while (fractionalDigits > 0 && accumulated % 10 == 0) {
+        accumulated /= 10;
+        fractionalDigits--;
+    }
+
+    if (fractionalDigits > N) { return std::nullopt; }
+
+    std::int64_t scaled{};
+
+    static_assert(N >= 0 && N <= 18);
+    if (__builtin_mul_overflow(accumulated, POW10[N - fractionalDigits], &scaled)) {
+
+        return std::nullopt;
+    }
+
+    return sign * scaled;
 
 }
 
 template <int N>
 std::string format_decimal(std::int64_t decimal) {}
-
-template <int N>
-std::int64_t scale_decimal(std::string_view stringWithoutDecimalPoint) {
-
-    std::int64_t res{};
-
-    // more performant that stoi, places result in res if parseable
-    // will not parse given a leading whitespace
-    auto [ptr, ec] = std::from_chars(stringWithoutDecimalPoint.begin(), stringWithoutDecimalPoint.end(), res, INTEGRAL_BASE);
-
-    // need to determine if we should throw here, this should never get hit
-    // if (ec != std::errc::invalid_argument) {}
-
-    return res * std::pow(INTEGRAL_BASE, N);
-
-}
-
-// parse_decimal<2>(1.20);

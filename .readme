@@ -15,6 +15,7 @@ cmake --build build && ctest --test-dir build --output-on-failure
 
 CMake Bypass for one file:
 clang++ -std=c++20 -g -O0 -Wall -Wextra -Iinclude tests/test_types.cpp -o build/test_types && ./build/test_types
+clang++ -std=c++20 -g -O0 -Wall -Wextra -Iinclude scratch/decimals_scratch.cpp -o build/decimals && ./build/decimals
 
 Syntax Check:
 clang++ -std=c++20 -Iinclude -fsyntax-only tests/test_types.cpp

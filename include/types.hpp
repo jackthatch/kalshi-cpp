@@ -19,8 +19,8 @@ constexpr std::uint64_t FUNDING_SCALE {1'000'000};
 constexpr std::uint64_t FUNDING_N {6};
 
 enum class Side {
-    bid,
-    ask
+    buy,
+    sell
 };
 
 //1e-4
