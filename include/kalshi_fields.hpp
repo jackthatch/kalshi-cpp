@@ -18,3 +18,9 @@ inline std::optional<std::int64_t> parse_price(std::string_view s) {
     if (!v || !in_magnitude(*v, MAX_PRICE_TICKS)) return std::nullopt;
     return v;
 }
+
+inline std::optional<std::int64_t> parse_quantity(std::string_view s) {
+    auto v = parse_decimal<2>(s);
+    if (!v || !in_magnitude(*v, MAX_PRICE_TICKS)) return std::nullopt;
+    return v;
+}
