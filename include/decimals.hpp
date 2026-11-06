@@ -19,14 +19,16 @@ constexpr std::int64_t POW10[] = {
     100'000'000'000'000'000LL, 1'000'000'000'000'000'000LL
 };
 
+
+//parse a string representation of a decimal as an int scaled 10^N
 template <int N>
 std::optional<std::int64_t> parse_decimal(std::string_view s) {
 
-    int sign{1};
+    int sign{1};    // will flip to -1 if negative sign found
     size_t idx{};
     size_t len {s.size()};
-    std::int64_t accumulated{};
-    std::int64_t fractionalDigits{};
+    std::int64_t accumulated{};     // running total of the scaled int
+    std::int64_t fractionalDigits{};    // number of digits past the decimal place
     std::int64_t digits{};
 
     if (idx < len && s[idx] == '-') {
@@ -36,7 +38,7 @@ std::optional<std::int64_t> parse_decimal(std::string_view s) {
 
     while (idx < len && std::isdigit(static_cast<unsigned char>(s[idx]))) {
         std::int64_t t{};
-        if (__builtin_mul_overflow(accumulated, 10, &t) ||
+        if (__builtin_mul_overflow(accumulated, 10, &t) ||          // guard against multiplcation overflow
             __builtin_add_overflow(t, s[idx] - '0', &accumulated)) {
             return std::nullopt;
         }
@@ -76,6 +78,7 @@ std::optional<std::int64_t> parse_decimal(std::string_view s) {
         return std::nullopt;
     }
 
+    // we made it
     return sign * scaled;
 
 }
