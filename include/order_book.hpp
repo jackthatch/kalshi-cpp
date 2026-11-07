@@ -3,6 +3,10 @@
 #include "types.hpp"
 
 #include <map>
+#include <span>
+#include <optional>
+#include <cstddef>
+#include <cstdint>
 
 // Price = 1e-4 ticks
 // Level Qty = std::int64_t at 1e-2 units, hundrethds of a contract
@@ -34,8 +38,6 @@ public:
 
             auto [it, inserted] = fresh.insert_or_assign(level.price, level.qty);
             inserted ? ++res.accepted : ++res.duplicate_prices;
-
-            fresh[level.price] = level.qty;
         }
 
         map_for(side).swap(fresh);
@@ -43,7 +45,7 @@ public:
         return res;
         
 
-    };
+    }
 
     std::optional<Price> best_bid() const {
         if (!bids_.empty()) {
@@ -58,7 +60,7 @@ public:
             return asks_.begin()->first;
         }
         return std::nullopt;
-    };
+    }
 
     bool is_crossed() const {
         
@@ -68,19 +70,11 @@ public:
         }
 
         return (best_bid() >= best_ask());
-    };
-
-    std::map<Price, std::int64_t>& map_for(Side side) {
-        return side == Side::buy ? bids_ : asks_;
-    }
-
-    const std::map<Price, std::int64_t>& map_for(Side side) const { 
-        return side == Side::buy ? bids_ : asks_;
     }
 
     std::size_t level_count(Side side) const {
         return(map_for(side).size());
-    };
+    }
 
     std::int64_t qty_at(Side side, Price price) const {
 
@@ -90,13 +84,22 @@ public:
         //const std::int64_t res = (mapIt == map.end() ? 0: mapIt->second);
 
         return (mapIt == map.end() ? 0: mapIt->second);
-    };
+    }
     void clear() {
         bids_.clear();
         asks_.clear();
-    };
+    }
 
 private:
+
+    std::map<Price, std::int64_t>& map_for(Side side) {
+        return side == Side::buy ? bids_ : asks_;
+    }
+
+    const std::map<Price, std::int64_t>& map_for(Side side) const { 
+        return side == Side::buy ? bids_ : asks_;
+    }
+
     std::map<Price, std::int64_t> bids_;
     std::map<Price, std::int64_t> asks_;
 };
