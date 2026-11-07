@@ -21,7 +21,29 @@ struct SnapshotStats {
 class OrderBook {
 
 public:
-    SnapshotStats apply_snapshot(Side side, std::span<const PriceLevel> levels);
+    SnapshotStats apply_snapshot(Side side, std::span<const PriceLevel> levels) {
+
+        SnapshotStats res{};
+        std::map<Price, std::int64_t> fresh;
+
+        for (const PriceLevel& level : levels) {
+            if (level.qty <= 0) {
+                res.rejected_nonpositive++;
+                continue;
+            }
+
+            auto [it, inserted] = fresh.insert_or_assign(level.price, level.qty);
+            inserted ? ++res.accepted : ++res.duplicate_prices;
+
+            fresh[level.price] = level.qty;
+        }
+
+        map_for(side).swap(fresh);
+
+        return res;
+        
+
+    };
 
     std::optional<Price> best_bid() const {
         if (!bids_.empty()) {
@@ -62,7 +84,7 @@ public:
 
     std::int64_t qty_at(Side side, Price price) const {
 
-        auto map = map_for(side);
+        auto& map = map_for(side);
         auto mapIt = map.find(price);
 
         //const std::int64_t res = (mapIt == map.end() ? 0: mapIt->second);
