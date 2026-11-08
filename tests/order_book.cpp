@@ -299,3 +299,174 @@ TEST_CASE("large snapshot: 10k levels per side keeps best prices correct") {
     CHECK_EQ(b.qty_at(Side::sell, at(209999)), 10199);
     CHECK_FALSE(b.is_crossed());
 }
+
+// ======================================================= apply_delta (CPP-42)
+
+namespace {
+bool erased(ApplyResult r) { return r == ApplyResult::level_erased; }
+bool applied(ApplyResult r) { return r == ApplyResult::applied; }
+} // namespace
+
+TEST_CASE("apply_delta: positive delta creates a level at an absent price") {
+    OrderBook b;
+    auto r = b.apply_delta(Side::buy, at(75801), 50);
+    CHECK(applied(r));
+    CHECK_EQ(b.level_count(Side::buy), 1u);
+    CHECK_EQ(b.qty_at(Side::buy, at(75801)), 50);
+    CHECK_EQ(b.best_bid()->ticks(), 75801);
+}
+
+TEST_CASE("apply_delta: positive delta adds to an existing level") {
+    OrderBook b;
+    std::vector<PriceLevel> s{{at(75805), 200}};
+    b.apply_snapshot(Side::buy, span_of(s));
+
+    auto r = b.apply_delta(Side::buy, at(75805), 25);
+    CHECK(applied(r));
+    CHECK_EQ(b.qty_at(Side::buy, at(75805)), 225);
+    CHECK_EQ(b.level_count(Side::buy), 1u);
+}
+
+TEST_CASE("apply_delta: negative delta subtracts (does not add)") {
+    OrderBook b;
+    std::vector<PriceLevel> s{{at(75805), 200}};
+    b.apply_snapshot(Side::buy, span_of(s));
+
+    auto r = b.apply_delta(Side::buy, at(75805), -100);
+    CHECK(applied(r));
+    CHECK_EQ(b.qty_at(Side::buy, at(75805)), 100);   // 200 - 100, not 200 + 100
+    CHECK_EQ(b.level_count(Side::buy), 1u);
+}
+
+TEST_CASE("apply_delta: negative delta exactly equal to the level erases it") {
+    OrderBook b;
+    std::vector<PriceLevel> s{{at(75803), 100}, {at(75805), 200}};
+    b.apply_snapshot(Side::buy, span_of(s));
+
+    auto r = b.apply_delta(Side::buy, at(75805), -200);
+    CHECK(erased(r));
+    CHECK_EQ(b.level_count(Side::buy), 1u);
+    CHECK_EQ(b.qty_at(Side::buy, at(75805)), 0);
+    CHECK_EQ(b.best_bid()->ticks(), 75803);          // best follows the erase
+}
+
+TEST_CASE("apply_delta: erasing the top level repeatedly walks the best price down") {
+    OrderBook b;
+    std::vector<PriceLevel> s{{at(75801), 10}, {at(75803), 20}, {at(75805), 30}};
+    b.apply_snapshot(Side::buy, span_of(s));
+
+    CHECK(erased(b.apply_delta(Side::buy, at(75805), -30)));
+    CHECK_EQ(b.best_bid()->ticks(), 75803);
+    CHECK(erased(b.apply_delta(Side::buy, at(75803), -20)));
+    CHECK_EQ(b.best_bid()->ticks(), 75801);
+    CHECK(erased(b.apply_delta(Side::buy, at(75801), -10)));
+    CHECK_EQ(b.level_count(Side::buy), 0u);
+    CHECK_FALSE(b.best_bid().has_value());           // empty side -> nullopt
+}
+
+TEST_CASE("apply_delta: overshooting a level is rejected and changes nothing") {
+    OrderBook b;
+    std::vector<PriceLevel> s{{at(75803), 100}, {at(75805), 200}};
+    b.apply_snapshot(Side::buy, span_of(s));
+
+    auto r = b.apply_delta(Side::buy, at(75805), -5000);
+    CHECK(r == ApplyResult::would_go_negative);
+    CHECK_EQ(b.qty_at(Side::buy, at(75805)), 200);   // untouched
+    CHECK_EQ(b.level_count(Side::buy), 2u);
+    CHECK_EQ(b.best_bid()->ticks(), 75805);
+}
+
+TEST_CASE("apply_delta: negative delta at an absent price is rejected, book unchanged") {
+    OrderBook b;
+    std::vector<PriceLevel> s{{at(75805), 200}};
+    b.apply_snapshot(Side::buy, span_of(s));
+
+    auto r = b.apply_delta(Side::buy, at(70000), -5);
+    CHECK(r == ApplyResult::unknown_level_negative);
+    CHECK_EQ(b.level_count(Side::buy), 1u);          // no phantom level
+    CHECK_EQ(b.qty_at(Side::buy, at(70000)), 0);
+}
+
+TEST_CASE("apply_delta: zero delta is a no-op that never creates a level") {
+    OrderBook b;
+    std::vector<PriceLevel> s{{at(75805), 200}};
+    b.apply_snapshot(Side::buy, span_of(s));
+
+    auto r1 = b.apply_delta(Side::buy, at(75805), 0);   // present
+    CHECK(applied(r1));
+    CHECK_EQ(b.qty_at(Side::buy, at(75805)), 200);
+
+    auto r2 = b.apply_delta(Side::buy, at(70000), 0);   // absent
+    CHECK(applied(r2));                                 // not "negative"
+    CHECK_EQ(b.level_count(Side::buy), 1u);             // still no zero-qty level
+}
+
+TEST_CASE("apply_delta: INT64_MIN delta must not invoke UB") {
+    OrderBook b;
+    std::vector<PriceLevel> s{{at(75805), 100}};
+    b.apply_snapshot(Side::buy, span_of(s));
+
+    const std::int64_t worst = std::numeric_limits<std::int64_t>::min();
+    auto r = b.apply_delta(Side::buy, at(75805), worst);
+    CHECK(r == ApplyResult::would_go_negative);
+    CHECK_EQ(b.qty_at(Side::buy, at(75805)), 100);
+}
+
+TEST_CASE("apply_delta: pathological positive delta must not overflow the level") {
+    OrderBook b;
+    std::vector<PriceLevel> s{{at(75805), 100}};
+    b.apply_snapshot(Side::buy, span_of(s));
+
+    auto r = b.apply_delta(Side::buy, at(75805), std::numeric_limits<std::int64_t>::max());
+    CHECK((b.qty_at(Side::buy, at(75805)) >= 100));   // no wrap to negative, ever
+    (void)r;
+}
+
+TEST_CASE("apply_delta: random sequence matches a reference map model") {
+    OrderBook b;
+    std::map<Price, std::int64_t> ref;
+
+    std::uint64_t seed = 12345;
+    auto rnd = [&seed]() { seed = seed * 6364136223846793005ULL + 1442695040888963407ULL; return seed >> 33; };
+
+    for (int i = 0; i < 4000; ++i) {
+        const std::int64_t px = 75800 + static_cast<std::int64_t>(rnd() % 12);
+        const std::int64_t delta = static_cast<std::int64_t>(rnd() % 401) - 200;  // -200..200
+
+        const auto it = ref.find(at(px));
+        const bool present = it != ref.end();
+        const std::int64_t cur = present ? it->second : 0;
+
+        auto got = b.apply_delta(Side::buy, at(px), delta);
+
+        if (delta > 0) {
+            ref[at(px)] = cur + delta;
+            CHECK(applied(got));
+        } else if (delta == 0) {
+            CHECK(applied(got));
+            CHECK_EQ(present, ref.count(at(px)) > 0);
+        } else if (!present) {
+            CHECK(got == ApplyResult::unknown_level_negative);
+        } else if (-delta > cur) {
+            CHECK(got == ApplyResult::would_go_negative);
+        } else if (-delta == cur) {
+            ref.erase(it);
+            CHECK(erased(got));
+        } else {
+            ref[at(px)] = cur + delta;
+            CHECK(applied(got));
+        }
+
+        REQUIRE_EQ(b.level_count(Side::buy), ref.size());
+        for (const auto& [p, q] : ref) {
+            REQUIRE_EQ(b.qty_at(Side::buy, p), q);
+        }
+        REQUIRE_EQ(b.qty_at(Side::buy, at(px)), ref.count(at(px)) ? ref.at(at(px)) : 0);
+    }
+
+    if (ref.empty()) {
+        CHECK_FALSE(b.best_bid().has_value());
+    } else {
+        CHECK_EQ(b.best_bid()->ticks(), ref.rbegin()->first.ticks());
+    }
+}
