@@ -186,9 +186,11 @@ public:
             }
 
             for (auto it = map.rbegin(); it != map.rend(); ++it) {
-                if (it->second >= lower_bound) {
+                if (it->first.ticks() >= lower_bound) {
                     res += it->second;
                     assert(res >= 0);
+                } else {
+                    break;
                 }
             }
 
@@ -204,9 +206,11 @@ public:
             }
 
             for (auto it = map.begin(); it != map.end(); ++it) {
-                if (it->second <= upper_bound) {
+                if (it->first.ticks() <= upper_bound) {
                     res += it->second;
                     assert(res >= 0);
+                } else {
+                    break;
                 }
             }
         }
@@ -242,5 +246,5 @@ private:
     // Measured (12 markets, 3.1h): ~129 deltas/sec aggregate, BTC ~46/sec,
     // weekend-halted equity/index markets 0/sec. Snapshot cadence is therefore
     // irrelevant to resolution; gap detection is what keeps the book honest.
-        bool valid_ {false}; 
+    bool valid_ {false}; 
 };
