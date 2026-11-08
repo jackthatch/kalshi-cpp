@@ -2,6 +2,7 @@
 #include "doctest.h"
 
 #include "order_book.hpp"
+#include "kalshi_fields.hpp"
 
 #include <algorithm>
 #include <vector>
@@ -545,4 +546,117 @@ TEST_CASE("validity: clear() returns the book to untrusted") {
 
     b.clear();
     CHECK_FALSE(b.is_valid());           // empty again -> no knowledge -> untrusted
+}
+
+// ================================================ depth (CPP-44)
+
+TEST_CASE("depth: best_qty is the quantity at the inside level") {
+    OrderBook b;
+    std::vector<PriceLevel> bids{{at(75801), 100}, {at(75803), 200}, {at(75805), 300}};
+    std::vector<PriceLevel> asks{{at(75810), 400}, {at(75807), 500}};
+    b.apply_snapshot(Side::buy, span_of(bids));
+    b.apply_snapshot(Side::sell, span_of(asks));
+
+    CHECK_EQ(b.best_qty(Side::buy), 300);    // highest bid
+    CHECK_EQ(b.best_qty(Side::sell), 500);   // lowest ask
+}
+
+TEST_CASE("depth: best_qty is zero for an empty side") {
+    OrderBook b;
+    CHECK_EQ(b.best_qty(Side::buy), 0);
+    CHECK_EQ(b.best_qty(Side::sell), 0);
+}
+
+TEST_CASE("depth: zero ticks equals best_qty") {
+    OrderBook b;
+    std::vector<PriceLevel> bids{{at(75801), 100}, {at(75805), 300}};
+    b.apply_snapshot(Side::buy, span_of(bids));
+
+    CHECK_EQ(b.depth_within(Side::buy, 0), b.best_qty(Side::buy));
+    CHECK_EQ(b.depth_within(Side::buy, 0), 300);
+}
+
+TEST_CASE("depth: sums only levels inside the tick range") {
+    OrderBook b;
+    // 75805 (300), 75803 (200), 75801 (100); best bid = 75805
+    std::vector<PriceLevel> bids{{at(75801), 100}, {at(75803), 200}, {at(75805), 300}};
+    b.apply_snapshot(Side::buy, span_of(bids));
+
+    CHECK_EQ(b.depth_within(Side::buy, 0), 300);   // top level only
+    CHECK_EQ(b.depth_within(Side::buy, 2), 500);   // 75805 + 75803
+    CHECK_EQ(b.depth_within(Side::buy, 4), 600);   // all three
+    CHECK_EQ(b.depth_within(Side::buy, 500), 600);// far more than the whole book
+}
+
+TEST_CASE("depth: range boundary is inclusive") {
+    OrderBook b;
+    std::vector<PriceLevel> bids{{at(75800), 100}, {at(75810), 200}};
+    b.apply_snapshot(Side::buy, span_of(bids));
+
+    CHECK_EQ(b.depth_within(Side::buy, 9), 200);    // 75810 only; 75800 is 10 away
+    CHECK_EQ(b.depth_within(Side::buy, 10), 300);   // boundary included
+}
+
+TEST_CASE("depth: asks walk upward from the best ask") {
+    OrderBook b;
+    // 75807 (500), 75810 (400); best ask = 75807
+    std::vector<PriceLevel> asks{{at(75810), 400}, {at(75807), 500}};
+    b.apply_snapshot(Side::sell, span_of(asks));
+
+    CHECK_EQ(b.depth_within(Side::sell, 0), 500);
+    CHECK_EQ(b.depth_within(Side::sell, 3), 900);
+    CHECK_EQ(b.depth_within(Side::sell, 1), 500);   // 75810 is 3 ticks out
+}
+
+TEST_CASE("depth: sides are isolated from each other") {
+    OrderBook b;
+    std::vector<PriceLevel> bids{{at(75805), 300}};
+    std::vector<PriceLevel> asks{{at(75806), 700}};
+    b.apply_snapshot(Side::buy, span_of(bids));
+    b.apply_snapshot(Side::sell, span_of(asks));
+
+    CHECK_EQ(b.depth_within(Side::buy, 100), 300);    // not 1000
+    CHECK_EQ(b.depth_within(Side::sell, 100), 700);
+}
+
+TEST_CASE("depth: empty side sums to zero") {
+    OrderBook b;
+    CHECK_EQ(b.depth_within(Side::buy, 50), 0);
+    CHECK_EQ(b.depth_within(Side::sell, 50), 0);
+}
+
+TEST_CASE("depth: negative tick range never sums anything") {
+    OrderBook b;
+    std::vector<PriceLevel> bids{{at(75801), 100}, {at(75805), 300}};
+    b.apply_snapshot(Side::buy, span_of(bids));
+
+    CHECK_EQ(b.depth_within(Side::buy, -1), 0);
+    CHECK_EQ(b.depth_within(Side::sell, -1), 0);
+}
+
+TEST_CASE("depth: cumulative depth is monotonic in the tick range") {
+    OrderBook b;
+    std::vector<PriceLevel> bids{{at(75790), 10}, {at(75800), 20}, {at(75805), 30}};
+    b.apply_snapshot(Side::buy, span_of(bids));
+
+    std::int64_t prev = -1;
+    for (std::int64_t t = 0; t <= 20; ++t) {
+        const std::int64_t d = b.depth_within(Side::buy, t);
+        CHECK(d >= prev);
+        prev = d;
+    }
+    CHECK_EQ(prev, 60);
+}
+
+TEST_CASE("depth: max-quantity levels at every tick sum without overflow") {
+    OrderBook b;
+    std::vector<PriceLevel> bids;
+    for (std::int64_t i = 0; i < 200; ++i) {
+        bids.push_back({at(75000 + i), MAX_QTY_UNITS});
+    }
+    b.apply_snapshot(Side::buy, span_of(bids));
+
+    const std::int64_t total = b.depth_within(Side::buy, 199);
+    CHECK_EQ(total, static_cast<std::int64_t>(200) * MAX_QTY_UNITS);
+    CHECK(total > 0);
 }
