@@ -26,7 +26,8 @@ enum class ApplyResult {
     applied,
     level_erased,
     unknown_level_negative, // negative delta at a price we don't have
-    would_go_negative       // |delta| > current level qty
+    would_go_negative,       // |delta| > current level qty
+    overflow                // operation would overflow the qty at the pricelevel, a bit clearer result that would_go_negative
 };
 
 class OrderBook {
@@ -57,22 +58,39 @@ public:
 
         auto priceIt = map.find(price);
         auto priceInBook = priceIt != map.end();
+
+        // std::abs(int64_t) is UB so we need to handle this properly
+        const auto mag = static_cast<std::uint64_t>(0) - static_cast<std::uint64_t>(delta);  // |delta| safely
+        const auto cur = static_cast<std::uint64_t>(priceIt->second);
         
         if (delta > 0) {
             if(priceInBook) {
-                map[price] += delta;
+                std::int64_t res {};
+                if(__builtin_sub_overflow(cur, delta, &res)) {
+                    return ApplyResult{ApplyResult::overflow};
+                }
+                priceIt->second = res;
             } else {
                 map[price] = delta;
             }
             return ApplyResult{ApplyResult::applied};
+        }
+
+        if (delta == 0) {
+            return ApplyResult{ApplyResult::applied};
         } 
 
+
         if (priceInBook) {
-            if (std::abs(delta) < priceIt->second) {
-                map[price] -= delta;
+            if (mag < cur) {
+                std::int64_t res {};
+                if(__builtin_add_overflow(cur, delta, &res)) {
+                    return ApplyResult{ApplyResult::overflow};
+                }
+                priceIt->second = res;
                 return ApplyResult{ApplyResult::applied};
             }
-            if (std::abs(delta) == priceIt->second) {
+            if (mag == cur) {
                 map.erase(priceIt);
                 return ApplyResult{ApplyResult::level_erased};
             } else {
