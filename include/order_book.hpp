@@ -9,7 +9,7 @@
 #include <cstdint>
 
 // Price = 1e-4 ticks
-// Level Qty = std::int64_t at 1e-2 units, hundrethds of a contract
+// Level Qty = std::int64_t at 1e-2 units, hundredths of a contract
 
 struct PriceLevel {
     Price price;
@@ -20,6 +20,13 @@ struct SnapshotStats {
     std::size_t accepted{};
     std::size_t rejected_nonpositive{};
     std::size_t duplicate_prices{};
+};
+
+enum class ApplyResult {
+    applied,
+    level_erased,
+    unknown_level_negative, // negative delta at a price we don't have
+    would_go_negative       // |delta| > current level qty
 };
 
 class OrderBook {
@@ -43,7 +50,40 @@ public:
         map_for(side).swap(fresh);
 
         return res;
+    }
+
+    ApplyResult apply_delta(Side side, Price price, std::int64_t delta) {
+        auto& map = map_for(side);
+
+        auto priceIt = map.find(price);
+        auto priceInBook = priceIt != map.end();
         
+        if (delta > 0) {
+            if(priceInBook) {
+                map[price] += delta;
+            } else {
+                map[price] = delta;
+            }
+            return ApplyResult{ApplyResult::applied};
+        } 
+
+        if (priceInBook) {
+            if (std::abs(delta) < priceIt->second) {
+                map[price] -= delta;
+                return ApplyResult{ApplyResult::applied};
+            }
+            if (std::abs(delta) == priceIt->second) {
+                map.erase(priceIt);
+                return ApplyResult{ApplyResult::level_erased};
+            } else {
+                return ApplyResult{ApplyResult::would_go_negative};
+            }
+        } 
+
+        // else we don't have the price in our book and it would go negative
+        return ApplyResult{ApplyResult::unknown_level_negative};
+         
+
 
     }
 
