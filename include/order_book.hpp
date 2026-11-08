@@ -152,7 +152,7 @@ public:
     void clear() {
         bids_.clear();
         asks_.clear();
-        valid_ = true;
+        valid_ = false;
     }
 
 private:
@@ -168,8 +168,14 @@ private:
     std::map<Price, std::int64_t> bids_;
     std::map<Price, std::int64_t> asks_;
 
-    // used to represent missing data, should we miss a delta snapshot we invalidate the book until we can reconcile with a complete snapshot
-    // deltas vary by book activity but up to around 45 deltas/second on BTC
-    // complete snapshots come around every 5 minutes
-    bool valid_ {false}; 
+    // Recovery model:
+    //  - The venue sends ONE orderbook_snapshot per market at subscribe, then
+    //    deltas only. It does not periodically re-push full books: a lost delta
+    //    is repaired only by explicitly requesting get_snapshot.
+    //  - So valid_ starts false (no snapshot yet) and any detected seq gap must
+    //    invalidate the book until a fresh snapshot lands.
+    // Measured (12 markets, 3.1h): ~129 deltas/sec aggregate, BTC ~46/sec,
+    // weekend-halted equity/index markets 0/sec. Snapshot cadence is therefore
+    // irrelevant to resolution; gap detection is what keeps the book honest.
+        bool valid_ {false}; 
 };
