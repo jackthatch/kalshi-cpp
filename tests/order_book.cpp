@@ -470,3 +470,79 @@ TEST_CASE("apply_delta: random sequence matches a reference map model") {
         CHECK_EQ(b.best_bid()->ticks(), ref.rbegin()->first.ticks());
     }
 }
+
+// ================================================ validity (CPP-43)
+
+TEST_CASE("validity: a fresh book does not claim to be trustworthy") {
+    OrderBook b;
+    CHECK_FALSE(b.is_valid());          // no snapshot yet -> nothing to trust
+}
+
+TEST_CASE("validity: apply_snapshot makes the book trustworthy") {
+    OrderBook b;
+    std::vector<PriceLevel> s{{at(75805), 200}};
+    b.apply_snapshot(Side::buy, span_of(s));
+    CHECK(b.is_valid());
+}
+
+TEST_CASE("validity: invalidate marks a synced book untrusted") {
+    OrderBook b;
+    std::vector<PriceLevel> s{{at(75805), 200}};
+    b.apply_snapshot(Side::buy, span_of(s));
+    REQUIRE(b.is_valid());
+
+    b.invalidate();
+    CHECK_FALSE(b.is_valid());
+}
+
+TEST_CASE("validity: invalidate is idempotent") {
+    OrderBook b;
+    b.invalidate();
+    b.invalidate();
+    CHECK_FALSE(b.is_valid());
+}
+
+TEST_CASE("validity: deltas still apply while the book is dirty") {
+    OrderBook b;
+    std::vector<PriceLevel> s{{at(75805), 200}};
+    b.apply_snapshot(Side::buy, span_of(s));
+    b.invalidate();
+    REQUIRE_FALSE(b.is_valid());
+
+    CHECK(applied(b.apply_delta(Side::buy, at(75805), -50)));
+    CHECK_EQ(b.qty_at(Side::buy, at(75805)), 150);   // applied, not dropped
+    CHECK_FALSE(b.is_valid());                              // and still dirty
+}
+
+TEST_CASE("validity: a snapshot on one side clears the whole book") {
+    OrderBook b;
+    std::vector<PriceLevel> bids{{at(75805), 200}};
+    std::vector<PriceLevel> asks{{at(75807), 300}};
+    b.apply_snapshot(Side::buy, span_of(bids));
+    b.apply_snapshot(Side::sell, span_of(asks));
+    b.invalidate();
+
+    b.apply_snapshot(Side::buy, span_of(bids));
+    CHECK(b.is_valid());     // per-book flag, not per-side
+}
+
+TEST_CASE("validity: an empty-span snapshot still clears the flag") {
+    OrderBook b;
+    b.invalidate();
+    REQUIRE_FALSE(b.is_valid());
+
+    std::vector<PriceLevel> none;
+    b.apply_snapshot(Side::sell, span_of(none));   // genuinely no asks
+    CHECK(b.is_valid());
+    CHECK_EQ(b.level_count(Side::sell), 0u);
+}
+
+TEST_CASE("validity: clear() returns the book to untrusted") {
+    OrderBook b;
+    std::vector<PriceLevel> s{{at(75805), 200}};
+    b.apply_snapshot(Side::buy, span_of(s));
+    REQUIRE(b.is_valid());
+
+    b.clear();
+    CHECK_FALSE(b.is_valid());           // empty again -> no knowledge -> untrusted
+}
