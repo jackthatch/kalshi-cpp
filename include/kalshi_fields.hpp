@@ -5,9 +5,14 @@
 #include <cstdint>
 #include <optional>
 #include <string_view>
+#include <limits>
 
-inline constexpr std::int64_t MAX_PRICE_TICKS = 10'000'000'000LL;  // |price| <= $1e6
-inline constexpr std::int64_t MAX_QTY_UNITS   = 100'000'000LL;     // |qty|   <= 1e6 contracts
+inline constexpr std::int64_t MAX_PRICE_TICKS = 100'000'000LL;
+inline constexpr std::int64_t MAX_QTY_UNITS   = 10'000'000'000LL;
+
+static_assert(static_cast<__int128>(MAX_PRICE_TICKS) * MAX_QTY_UNITS
+    <= std::numeric_limits<std::int64_t>::max() / 9,
+    "MAX_PRICE_TICKS * MAX_QTY_UNITS leaves less than 9x headroom in int64");
 
 inline bool in_magnitude(std::int64_t v, std::int64_t maxMag) {
     return v >= -maxMag && v <= maxMag;

@@ -11,10 +11,10 @@
     std::optional<std::int64_t> parse_decimal<N>(std::string_view tickAsString)
 */
 
-constexpr std::uint64_t PRICE_SCALE {10'000};
-constexpr std::uint64_t PRICE_N {4};
-constexpr std::uint64_t QUANTITY_SCALE {100};
-constexpr std::uint64_t QUANTITY_N {2};
+constexpr std::uint64_t PRICE_SCALE {10'000'000'000};
+constexpr std::uint64_t PRICE_N {10};
+constexpr std::uint64_t QUANTITY_SCALE {100'000'000};
+constexpr std::uint64_t QUANTITY_N {8};
 constexpr std::uint64_t FUNDING_SCALE {1'000'000};
 constexpr std::uint64_t FUNDING_N {6};
 
