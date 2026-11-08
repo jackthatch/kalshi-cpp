@@ -49,6 +49,7 @@ public:
         }
 
         map_for(side).swap(fresh);
+        dirty_ = true;
 
         return res;
     }
@@ -119,6 +120,8 @@ public:
         return std::nullopt;
     }
 
+    void invalidate() { dirty_ = true; }
+
     bool is_crossed() const {
         
         // empty books cannot cross
@@ -127,6 +130,10 @@ public:
         }
 
         return (best_bid() >= best_ask());
+    }
+
+    bool is_dirty() const {
+        return dirty_;
     }
 
     std::size_t level_count(Side side) const {
@@ -159,4 +166,9 @@ private:
 
     std::map<Price, std::int64_t> bids_;
     std::map<Price, std::int64_t> asks_;
+
+    // used to represent missing data, should we miss a delta snapshot we invalidate the book until we can reconcile with a complete snapshot
+    // deltas vary by book activity but up to around 45 deltas/second on BTC
+    // complete snapshots come around every 5 minutes
+    bool dirty_; 
 };
