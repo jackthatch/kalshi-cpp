@@ -301,12 +301,12 @@ TEST_CASE("parse_decimal<N> agrees with the *_N / *_SCALE constants") {
     CHECK_EQ(parse_decimal<6>("1").value_or(kReject), static_cast<std::int64_t>(FUNDING_SCALE));
 }
 
-TEST_CASE("parse_price: domain bound |ticks| <= 1e10 is enforced") {
+TEST_CASE("parse_price: domain bound |ticks| <= MAX_PRICE_TICKS is enforced") {
     CHECK_EQ(parse_price("0.01").value_or(kReject), 100);
-    CHECK_EQ(parse_price("1000000").value_or(kReject), 10'000'000'000LL);      // exactly 1e10
-    CHECK_FALSE(parse_price("1000000.0001").has_value());                       // 1e10 + 1
-    CHECK_FALSE(parse_price("2000000").has_value());                            // 2e10
-    CHECK_FALSE(parse_price("-2000000").has_value());                           // -2e10
+    CHECK_EQ(parse_price("10000").value_or(kReject), MAX_PRICE_TICKS);   // exactly the bound: $10,000 at 4dp
+    CHECK_FALSE(parse_price("10000.0001").has_value());                  // bound + 1 tick
+    CHECK_FALSE(parse_price("20000").has_value());                       // 2x the bound
+    CHECK_FALSE(parse_price("-20000").has_value());
     CHECK_FALSE(parse_price("nonsense").has_value());
 }
 
@@ -318,17 +318,30 @@ TEST_CASE("in_magnitude: shared boundary helper") {
     CHECK_FALSE(in_magnitude(-(MAX_QTY_UNITS + 1), MAX_QTY_UNITS));
 }
 
-TEST_CASE("parse_quantity: domain bound |units| <= 1e8 is enforced") {
+TEST_CASE("parse_quantity: domain bound |units| <= MAX_QTY_UNITS is enforced") {
     CHECK_EQ(parse_quantity("1.55").value_or(kReject), 155);
-    CHECK_EQ(parse_quantity("1000000").value_or(kReject), 100'000'000LL);  // exactly 1e8 units
-    CHECK_FALSE(parse_quantity("1000000.01").has_value());                 // 1e8 + 1
-    CHECK_FALSE(parse_quantity("2000000").has_value());                    // 2e8
-    CHECK_FALSE(parse_quantity("-2000000").has_value());
+    CHECK_EQ(parse_quantity("100000000").value_or(kReject), MAX_QTY_UNITS);  // exactly the bound: 100M contracts
+    CHECK_FALSE(parse_quantity("100000000.01").has_value());                 // bound + 1 unit
+    CHECK_FALSE(parse_quantity("200000000").has_value());                    // 2x the bound
+    CHECK_FALSE(parse_quantity("-200000000").has_value());
     CHECK_FALSE(parse_quantity("nonsense").has_value());
-    // Regression: quantity must not be validated against the looser price cap.
-    // 1e9 units passes |ticks| <= 1e10 (price) but must fail the 1e8 quantity cap.
-    CHECK_FALSE(parse_quantity("10000000").has_value());
-    static_assert(MAX_QTY_UNITS < MAX_PRICE_TICKS);
+
+    // Regression: the two caps are independent, and quantity's is now the LOOSER one
+    // (1e10 units vs 1e8 price ticks). A size that exceeds the price cap but sits
+    // inside the quantity cap must still parse.
+    CHECK_EQ(parse_quantity("10000000").value_or(kReject), 1'000'000'000LL);  // 1e9 units > MAX_PRICE_TICKS
+    static_assert(MAX_PRICE_TICKS < MAX_QTY_UNITS);
+}
+
+TEST_CASE("parse_*: real levels observed on the live feed (CPP-46)") {
+    // Pulled from the recorder's oracle snapshot, 2026-11-08T02:50Z.
+    CHECK_EQ(parse_price("0.1794").value_or(kReject), 1794);
+    CHECK_EQ(parse_price("15.1385").value_or(kReject), 151'385);
+
+    // ETH/ADA market-maker ladders: these are what the old 1e8-unit cap rejected.
+    CHECK_EQ(parse_quantity("1047774.00").value_or(kReject), 104'777'400LL);
+    CHECK_EQ(parse_quantity("941394.00").value_or(kReject), 94'139'400LL);
+    CHECK_EQ(parse_quantity("202694.00").value_or(kReject), 20'269'400LL);
 }
 
 TEST_CASE("parse_decimal: high-bit bytes are not digits") {
