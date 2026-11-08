@@ -59,14 +59,10 @@ public:
         auto priceIt = map.find(price);
         auto priceInBook = priceIt != map.end();
 
-        // std::abs(int64_t) is UB so we need to handle this properly
-        const auto mag = static_cast<std::uint64_t>(0) - static_cast<std::uint64_t>(delta);  // |delta| safely
-        const auto cur = static_cast<std::uint64_t>(priceIt->second);
-        
         if (delta > 0) {
             if(priceInBook) {
                 std::int64_t res {};
-                if(__builtin_sub_overflow(cur, delta, &res)) {
+                if(__builtin_add_overflow(priceIt->second, delta, &res)) {
                     return ApplyResult{ApplyResult::overflow};
                 }
                 priceIt->second = res;
@@ -82,6 +78,9 @@ public:
 
 
         if (priceInBook) {
+            // std::abs(int64_t) is UB so we need to handle this properly
+            const auto mag = static_cast<std::uint64_t>(0) - static_cast<std::uint64_t>(delta);  // |delta| safely
+            const auto cur = static_cast<std::uint64_t>(priceIt->second);
             if (mag < cur) {
                 std::int64_t res {};
                 if(__builtin_add_overflow(cur, delta, &res)) {
