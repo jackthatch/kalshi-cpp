@@ -1,0 +1,300 @@
+{
+  "source": {
+    "file": "/tmp/oracle_2026-11-08.jsonl",
+    "checkpoints": 62,
+    "skipped_lines": 0,
+    "window": [
+      "2026-11-08T00:25:44.946249+00:00",
+      "2026-11-08T05:31:16.765408+00:00"
+    ],
+    "note": "weekend, ~5h window, equity/index markets halted, thin vs weekday"
+  },
+  "scales": {
+    "price_ticks_per_unit": 10000,
+    "qty_units_per_contract": 100
+  },
+  "observed_maxima": {
+    "price_ticks": 151385,
+    "price_dollars": 15.1385,
+    "qty_units": 172281900,
+    "qty_contracts": 1722819.0
+  },
+  "markets": [
+    {
+      "ticker": "KXBTCPERP",
+      "snapshots": 62,
+      "levels_per_side_median": [
+        130,
+        104
+      ],
+      "levels_max": [
+        143,
+        114
+      ],
+      "tick_gap": {
+        "median": 12,
+        "p90": 503,
+        "max": 2999
+      },
+      "qty_units": {
+        "min": 100,
+        "median": 20000,
+        "p90": 5541600,
+        "max": 40791700
+      }
+    },
+    {
+      "ticker": "KXGOLDPERP",
+      "snapshots": 62,
+      "levels_per_side_median": [
+        78,
+        57
+      ],
+      "levels_max": [
+        83,
+        63
+      ],
+      "tick_gap": {
+        "median": 16,
+        "p90": 257,
+        "max": 3306
+      },
+      "qty_units": {
+        "min": 100,
+        "median": 23900,
+        "p90": 2133500,
+        "max": 26768000
+      }
+    },
+    {
+      "ticker": "KXETHPERP",
+      "snapshots": 62,
+      "levels_per_side_median": [
+        65,
+        63
+      ],
+      "levels_max": [
+        72,
+        71
+      ],
+      "tick_gap": {
+        "median": 3,
+        "p90": 309,
+        "max": 2041
+      },
+      "qty_units": {
+        "min": 300,
+        "median": 932800,
+        "p90": 29310600,
+        "max": 172281900
+      }
+    },
+    {
+      "ticker": "KXSOLPERP",
+      "snapshots": 62,
+      "levels_per_side_median": [
+        51,
+        43
+      ],
+      "levels_max": [
+        56,
+        48
+      ],
+      "tick_gap": {
+        "median": 8,
+        "p90": 634,
+        "max": 20762
+      },
+      "qty_units": {
+        "min": 100,
+        "median": 91900,
+        "p90": 1751000,
+        "max": 5739200
+      }
+    },
+    {
+      "ticker": "KXSILVERPERP",
+      "snapshots": 62,
+      "levels_per_side_median": [
+        36,
+        26
+      ],
+      "levels_max": [
+        38,
+        29
+      ],
+      "tick_gap": {
+        "median": 28,
+        "p90": 214,
+        "max": 3163
+      },
+      "qty_units": {
+        "min": 100,
+        "median": 53800,
+        "p90": 3022600,
+        "max": 9685300
+      }
+    },
+    {
+      "ticker": "KXXRPPERP",
+      "snapshots": 62,
+      "levels_per_side_median": [
+        35,
+        27
+      ],
+      "levels_max": [
+        40,
+        32
+      ],
+      "tick_gap": {
+        "median": 2,
+        "p90": 250,
+        "max": 1152
+      },
+      "qty_units": {
+        "min": 100,
+        "median": 2465200,
+        "p90": 21870300,
+        "max": 66312900
+      }
+    },
+    {
+      "ticker": "KXWTIFUTURE",
+      "snapshots": 62,
+      "levels_per_side_median": [
+        21,
+        11
+      ],
+      "levels_max": [
+        21,
+        11
+      ],
+      "tick_gap": {
+        "median": 73,
+        "p90": 113,
+        "max": 1017
+      },
+      "qty_units": {
+        "min": 200,
+        "median": 300,
+        "p90": 288300,
+        "max": 1382700
+      }
+    },
+    {
+      "ticker": "KXUSTECH100PERP",
+      "snapshots": 62,
+      "levels_per_side_median": [
+        9,
+        11
+      ],
+      "levels_max": [
+        9,
+        11
+      ],
+      "tick_gap": {
+        "median": 36,
+        "p90": 1000,
+        "max": 1000
+      },
+      "qty_units": {
+        "min": 1900,
+        "median": 50000,
+        "p90": 100000,
+        "max": 484400
+      }
+    },
+    {
+      "ticker": "KXADAPERP",
+      "snapshots": 62,
+      "levels_per_side_median": [
+        9,
+        9
+      ],
+      "levels_max": [
+        9,
+        10
+      ],
+      "tick_gap": {
+        "median": 1,
+        "p90": 174,
+        "max": 397
+      },
+      "qty_units": {
+        "min": 200,
+        "median": 18473300,
+        "p90": 92826200,
+        "max": 138091000
+      }
+    },
+    {
+      "ticker": "KXSPCXPERP",
+      "snapshots": 62,
+      "levels_per_side_median": [
+        7,
+        2
+      ],
+      "levels_max": [
+        7,
+        2
+      ],
+      "tick_gap": {
+        "median": 679,
+        "p90": 3045,
+        "max": 3045
+      },
+      "qty_units": {
+        "min": 100,
+        "median": 800,
+        "p90": 3700,
+        "max": 3700
+      }
+    },
+    {
+      "ticker": "KXUS500PERP",
+      "snapshots": 62,
+      "levels_per_side_median": [
+        7,
+        3
+      ],
+      "levels_max": [
+        7,
+        3
+      ],
+      "tick_gap": {
+        "median": 3000,
+        "p90": 13010,
+        "max": 13010
+      },
+      "qty_units": {
+        "min": 100,
+        "median": 11700,
+        "p90": 50400,
+        "max": 1352100
+      }
+    },
+    {
+      "ticker": "KXNVDAPERP",
+      "snapshots": 62,
+      "levels_per_side_median": [
+        6,
+        2
+      ],
+      "levels_max": [
+        6,
+        2
+      ],
+      "tick_gap": {
+        "median": 800,
+        "p90": 4762,
+        "max": 4762
+      },
+      "qty_units": {
+        "min": 100,
+        "median": 1900,
+        "p90": 10700,
+        "max": 10700
+      }
+    }
+  ]
+}

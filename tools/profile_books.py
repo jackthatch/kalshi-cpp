@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+
+## hermes doing my dirty work below :)
+
 """Extract a book-shape profile from kalshi-recorder oracle JSONL.
 
 Usage:
