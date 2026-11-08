@@ -7,7 +7,7 @@
 #include <optional>
 #include <cstddef>
 #include <cstdint>
-
+#include <cassert>
 // Price = 1e-4 ticks
 // Level Qty = std::int64_t at 1e-2 units, hundredths of a contract
 
@@ -149,6 +149,71 @@ public:
 
         return (mapIt == map.end() ? 0: mapIt->second);
     }
+
+    std::int64_t best_qty(Side side) const {
+        auto& map = map_for(side);
+    
+        // empty book
+        if (map.empty()) {
+            return 0;
+        }
+        
+        if (side == Side::buy) {
+            return (map.rbegin()->second);
+        } else {
+            return (map.begin()->second);
+        }
+    }
+
+    std::int64_t depth_within(Side side, std::int64_t ticks) const {
+        auto& map = map_for(side);
+
+        if (map.empty()) {
+            return 0;
+        }
+
+        int64_t res {};
+
+        if (side == Side::buy) {
+
+            std::optional<Price> best_bid_opt = best_bid();
+            std::int64_t lower_bound{};
+
+            if (best_bid_opt.has_value()) {
+                lower_bound = best_bid_opt.value().ticks() - ticks;
+            } else {
+                return 0;
+            }
+
+            for (auto it = map.rbegin(); it != map.rend(); ++it) {
+                if (it->second >= lower_bound) {
+                    res += it->second;
+                    assert(res >= 0);
+                }
+            }
+
+        } else {
+
+            std::optional<Price> best_ask_opt = best_ask();
+            std::int64_t upper_bound{};
+
+            if (best_ask_opt.has_value()) {
+                upper_bound = best_ask_opt.value().ticks() + ticks;
+            } else {
+                return 0;
+            }
+
+            for (auto it = map.begin(); it != map.end(); ++it) {
+                if (it->second <= upper_bound) {
+                    res += it->second;
+                    assert(res >= 0);
+                }
+            }
+        }
+
+        return res;
+    }
+
     void clear() {
         bids_.clear();
         asks_.clear();
