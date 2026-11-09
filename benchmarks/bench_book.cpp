@@ -1,20 +1,36 @@
 /*
-    Benchmarks for the order_book 
+    Benchmarks for the order_book
 
     State as of 11/09/2026
+
                                    small 130lv   large 2000lv
-        harness floor              0.23 ns
-        qty_at hit                 5.54 ns       8.86 ns      O(log n)  
-        qty_at miss                6.09 ns       7.44 ns
-        best_qty                   2.09 ns       2.15 ns      O(1)      
-        level_count                0.23 ns       0.24 ns      O(1)      
-        is_crossed                10.27 ns      11.27 ns
-        depth 10                   9.69 ns       8.91 ns      O(k)      
-        depth 50                  20.98 ns      20.08 ns      O(k)      
-        depth 200                 57.88 ns      57.83 ns      O(k)      
-        apply_delta update         6.30 ns
-        create+erase (pair)       40.28 ns                    allocator-bound    
+        harness floor              0.27 ns
+        qty_at hit                 4.69 ns       6.92 ns      O(log n)   +48%
+        qty_at miss                5.24 ns       6.87 ns
+        best_qty                   2.20 ns       2.21 ns      O(1)       flat
+        level_count                0.25 ns       0.25 ns      O(1)       flat
+        is_crossed                10.51 ns      10.55 ns      O(1)       flat
+        depth 10                   9.22 ns       9.09 ns      O(k)       flat
+        depth 50                  20.32 ns      20.25 ns      O(k)       flat
+        depth 200                 54.00 ns      53.69 ns      O(k)       flat
+        apply_delta update         5.46 ns                    == qty_at
+        create+erase (pair)       35.75 ns                    allocator-bound
+                                  (33.9 ... 46.4 ns spread = tcache vs arena)
+
+    Findings
+      - depth_within is O(levels scanned), NOT O(book size): 15x more levels,
+        identical cost. Marginal ~2.7 ns/level (RB-tree increment). The early
+        break works; reproduced across three independent runs (+-0.4%).
+      - A write costs the same as a read (update 5.46 vs qty_at hit 4.69):
+        same descent, plus a store into a node already hot.
+      - create+erase is ~6x update and allocator-dominated. Insert cost is a
+        property of heap state, not of the book.
+      - depth_within carries a ~7 ns intercept vs best_qty's 2.2 ns: it calls
+        best_bid(), which returns std::optional<Price> by value. Reading
+        map.rbegin()->first.ticks() directly should halve it.
+
 */
+
 
 #include "order_book.hpp"
 
@@ -62,17 +78,18 @@ BenchResult measure(const char* name, std::int64_t iters, int reps, F&& fn, Setu
 
     if (iters <= 0 || reps <= 0) { std::fprintf(stderr, "iter/reps must be > 0\n"); std::abort(); }
     
-    for (std::int64_t i = 0; i < warmup_iters; ++i) {
-        auto v = fn();
-        keep(v);
-        res += v;
-    }
-
+    int warmup_iters {5'000'000};
     std::int64_t res{};
     std::vector<double> ns_per_rep{};
     ns_per_rep.reserve(static_cast<std::size_t>(reps));
 
     setup();
+
+    for (std::int64_t i = 0; i < warmup_iters; ++i) {
+        auto v = fn();
+        keep(v);
+        res += v;
+    }
 
     for (int i = 0; i < warmup_iters; ++i) {
         res += fn();
