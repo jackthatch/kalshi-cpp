@@ -133,8 +133,12 @@ for bin in "${bins[@]}"; do
   log="$OUT/$name.log"
   printf '%s▶ run %s%s\n' "$c_info" "$name" "$c_off" >&2
   if "$bin" >"$log" 2>&1; then
-    # tests emit doctest summaries; benchmarks just print their own table
-    grep -E 'test cases:|Status:' "$log" | tail -2 | sed 's/^/    /' || true
+    # doctest binaries get a 2-line summary; benchmarks print their own table
+    if grep -qE 'test cases:|Status:' "$log"; then
+      grep -E 'test cases:|Status:' "$log" | tail -2 | sed 's/^/    /'
+    else
+      sed 's/^/    /' "$log"
+    fi
   else
     printf '%sFAIL%s %s  (log: %s)\n' "$c_err" "$c_off" "$name" "$log" >&2
     tail -20 "$log" | sed 's/^/    /'
