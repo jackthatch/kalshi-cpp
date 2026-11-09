@@ -27,7 +27,7 @@
 #include <chrono>
 #include <algorithm>
 #include <numeric>
-#include <cassert>
+#include <utility>
 
 struct BenchResult {
     std::string benchmark_type;     // function name or path, the thing being benchmarked
@@ -62,7 +62,12 @@ BenchResult measure(const char* name, std::int64_t iters, int reps, F&& fn, Setu
 
     if (iters <= 0 || reps <= 0) { std::fprintf(stderr, "iter/reps must be > 0\n"); std::abort(); }
     
-    const std::int64_t warmup_iters = std::max<std::int64_t>(iters / 10, 1000);
+    for (std::int64_t i = 0; i < warmup_iters; ++i) {
+        auto v = fn();
+        keep(v);
+        res += v;
+    }
+
     std::int64_t res{};
     std::vector<double> ns_per_rep{};
     ns_per_rep.reserve(static_cast<std::size_t>(reps));
@@ -110,15 +115,17 @@ OrderBook make_book(int n_levels, std::int64_t gap_ticks, Price best, std::int64
     std::vector<PriceLevel> bids, asks;
     // best bid 75,611 ticks ($7.5611), 130 levels, ~12 ticks apart, qty ~20,000 units
     for (int i = 0; i < n_levels; ++i) {
-        bids.push_back({ Price{ best.ticks() - 12 * i }, base_qty * i });
-        asks.push_back({ Price{ best.ticks() + 12 * i }, base_qty  * i });
+        bids.push_back({ Price{ best.ticks() - gap_ticks * i }, base_qty + 137 * i });
+        asks.push_back({ Price{ best.ticks() + gap_ticks * i }, base_qty + 91  * i });
     }
     OrderBook bk;
     bk.apply_snapshot(Side::buy,  bids);
     bk.apply_snapshot(Side::sell, asks);
+
+    if (bk.level_count(Side::buy) != static_cast<std::size_t>(n_levels)) std::abort();
+
     return bk;
 }
-OrderBook make_book(int n_levels, std::int64_t gap_ticks, Price best, std::int64_t base_qty);
 
 int main() {
     constexpr std::int64_t iterations = 5'000'000;
