@@ -6,6 +6,7 @@
 #   dev order_book              same, bare name resolves to tests/order_book.cpp
 #   dev all -r                  release build (-O2 -DNDEBUG), no sanitizers
 #   dev all -n                  build only, don't run
+#   dev bench_book -r           bare names resolve in tests/ and benchmarks/ (benches need -r)
 #   dev tidy [path]             clang-tidy (default: include/)
 #
 #   CXX=clang++ dev all         switch compiler
@@ -18,6 +19,7 @@ CXX="${CXX:-g++}"
 STD="-std=c++20"
 INC="$ROOT/${INC_DIR:-include}"
 TESTS="$ROOT/${TEST_DIR:-tests}"
+BENCHES="$ROOT/${BENCH_DIR:-benchmarks}"
 OUT="$ROOT/${OUT_DIR:-build/dev}"
 
 WARN=(-Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion
@@ -33,7 +35,7 @@ else
 fi
 
 usage() {
-  sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 die() { printf '%serror:%s %s\n' "$c_err" "$c_off" "$*" >&2; exit 1; }
@@ -49,7 +51,7 @@ resolve() { # $1 -> prints zero or more absolute source paths
     return
   fi
   local cand
-  for cand in "$t" "$ROOT/$t" "$TESTS/${t%.cpp}.cpp" "$ROOT/${t%.cpp}.cpp"; do
+  for cand in "$t" "$ROOT/$t" "$TESTS/${t%.cpp}.cpp" "$BENCHES/${t%.cpp}.cpp" "$ROOT/${t%.cpp}.cpp"; do
     if [[ -f "$cand" ]]; then
       printf '%s\n' "$(cd "$(dirname "$cand")" && pwd)/$(basename "$cand")"
       return
@@ -131,7 +133,8 @@ for bin in "${bins[@]}"; do
   log="$OUT/$name.log"
   printf '%s▶ run %s%s\n' "$c_info" "$name" "$c_off" >&2
   if "$bin" >"$log" 2>&1; then
-    grep -E 'test cases:|Status:' "$log" | tail -2 | sed 's/^/    /'
+    # tests emit doctest summaries; benchmarks just print their own table
+    grep -E 'test cases:|Status:' "$log" | tail -2 | sed 's/^/    /' || true
   else
     printf '%sFAIL%s %s  (log: %s)\n' "$c_err" "$c_off" "$name" "$log" >&2
     tail -20 "$log" | sed 's/^/    /'
